@@ -8,9 +8,9 @@ services:
       bash -c "ln -sf Ho_Chi_Minh /usr/share/zoneinfo/Asia/Saigon 2>/dev/null; 
               docker-entrypoint.sh postgres"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: tiktok_dw
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       TZ: Asia/Ho_Chi_Minh
     ports:
       - "5433:5432"
@@ -19,7 +19,7 @@ services:
     networks:
       - airflow-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,9 +27,9 @@ services:
   airflow-postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${AIRFLOW_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_DB}
       TZ: UTC
       PGTZ: UTC
     volumes:
@@ -37,7 +37,7 @@ services:
     networks:
       - airflow-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -58,11 +58,11 @@ services:
     environment:
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: airflow
-      _AIRFLOW_WWW_USER_PASSWORD: airflow
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USER}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD}
       _UID: 50000
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
-      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY:-ZmVybmV0X2tleV9mb3JfdGVzdGluZ19wdXJwb3Nlc19vbmx5XzEyMzQ1Njc4OTA=}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_USER}:${AIRFLOW_PASSWORD}@airflow-postgres/${AIRFLOW_DB}
+      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
     volumes:
       - ./:/opt/airflow
     networks:
@@ -76,14 +76,14 @@ services:
     command: >
       bash -c "rm -f /opt/airflow/airflow-webserver.pid &&
               pip install -r /requirements.txt &&
-              airflow connections add 'postgres_dw' --conn-type 'postgres' --conn-host 'postgres_dw' --conn-schema 'tiktok_dw' --conn-login 'postgres' --conn-password 'postgres' --conn-port '5432' 2>/dev/null || true &&
+              airflow connections add 'postgres_dw' --conn-type 'postgres' --conn-host 'postgres_dw' --conn-schema '${POSTGRES_DB}' --conn-login '${POSTGRES_USER}' --conn-password '${POSTGRES_PASSWORD}' --conn-port '5432' 2>/dev/null || true &&
               airflow webserver"
     ports:
       - "8080:8080"
     environment:
       EXECUTOR: Local
-      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY:-ZmVybmV0X2tleV9mb3JfdGVzdGluZ19wdXJwb3Nlc19vbmx5XzEyMzQ1Njc4OTA=}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_USER}:${AIRFLOW_PASSWORD}@airflow-postgres/${AIRFLOW_DB}
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
@@ -111,8 +111,8 @@ services:
               airflow scheduler"
     environment:
       EXECUTOR: Local
-      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY:-ZmVybmV0X2tleV9mb3JfdGVzdGluZ19wdXJwb3Nlc19vbmx5XzEyMzQ1Njc4OTA=}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_USER}:${AIRFLOW_PASSWORD}@airflow-postgres/${AIRFLOW_DB}
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
@@ -126,9 +126,6 @@ services:
     networks:
       - airflow-network
 
-  # =============================================
-  # METABASE - ENTERPRISE BI DASHBOARD
-  # =============================================
   metabase:
     image: metabase/metabase:latest
     container_name: metabase
