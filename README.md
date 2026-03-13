@@ -280,8 +280,7 @@ AIRFLOW_PASSWORD=<secure_password>
 
 💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/
 
-📄 License
-MIT License - Feel free to use for learning and portfolio purposes!
+📄 MIT License - Feel free to use for learning and portfolio purposes!
 
 
 Last Updated: March 2026
