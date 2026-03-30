@@ -19,7 +19,8 @@ This pipeline solves that by providing:
 - Automated daily data collection  
 - Clean, analytics-ready data warehouse  
 - Interactive dashboards for stakeholder consumption
-- Data quality enforcement at every stage  
+- Data quality enforcement at every stage
+
 ## Infrastructure Components
 
 | Component         | Technology           | Purpose                                                  |
@@ -33,20 +34,18 @@ This pipeline solves that by providing:
 ## Technical Architecture:
 <img width="1362" height="722" alt="image" src="https://github.com/user-attachments/assets/92ddf58c-d721-4673-9d93-65868d6c0095" />
 
+## 📊 Dashboard Screenshots
+### Metabase Overview - Data Quality & Hashtag Distribution  
+<img width="1564" height="853" alt="Overview" src="https://github.com/user-attachments/assets/5a853eb7-ecc5-4162-ace7-931b78d892f6" />****
+### Metabase Analytics - Trends & Metrics Distribution
+- Top Hashtags by Views:
+  
+<img width="1919" height="801" alt="Top_hashtag_by_view" src="https://github.com/user-attachments/assets/1bfab5f8-bc64-4bb0-8b2e-1f8111a566ce" />
+- Daily Engagement Rate Trend:
 
-## Infrastructure Components  
+<img width="1919" height="806" alt="Daily_Engagement_Rate_Trend" src="https://github.com/user-attachments/assets/feb5d42e-4702-4172-a074-0bbafac0b372" />  
 
-| Component         | Technology           | Purpose                                                  |
-|-------------------|----------------------|----------------------------------------------------------|
-| Orchestration     | Apache Airflow 2.8.0 | Pipeline scheduling, monitoring, retry logic             |
-| Data Warehouse    | PostgreSQL 15        | Star schema storage with referential integrity           |
-| BI & Analytics    | Metabase             | Self-service dashboards for business users               |
-| Containerization  | Docker Compose       | Reproducible environments, easy deployment               |
-| Language          | Python 3.10          | ETL logic, API simulation, data transformations          |
-
-
-## Key Features
-### Data Engineering Best Practices
+### Data Engineering Best Practices  
 
 | Feature           | Implementation                                      | Business Value                                     |
 |-------------------|-----------------------------------------------------|----------------------------------------------------|
@@ -88,6 +87,7 @@ clean_staging → mock_api_data → check_data_quality → load_dim_hashtag → 
 | load_dim_hashtag   | PostgresOperator | Load unique hashtags to dimension             |
 | transform_to_fact  | PostgresOperator | Aggregate staging → fact table                |
 | build_hashtag_rank | PostgresOperator | Calculate daily rankings                      |
+
 ## Quick Start
 ### Required Software
 Docker Desktop 4.0+     # https://docker.com  
@@ -195,9 +195,9 @@ ORDER BY growth_percent DESC NULLS LAST;
 -Problem: Using datetime.now() breaks backfill operations.  
 -Solution: Use Airflow's {{ ds }} template variable:  
 ```sql
-WHERE report_date = '{{ ds }}'  -- Uses execution_date, not current date
+WHERE report_date = '{{ ds }}' 
 ```
-Result: Safe to backfill historical data without processing wrong dates.  
+-Result: Safe to backfill historical data without processing wrong dates.  
 2. Bulk Insert for Performance  
 -Problem: Row-by-row insert is slow for large datasets.  
 -Solution: Use hook.insert_rows() with list of tuples:  
@@ -246,21 +246,20 @@ Result: Pipeline fails fast on bad data, preventing corruption.
 - BI & Visualization: Metabase, SQL queries, Dashboard design  
 - Code Quality: Modular architecture, Type hints, Documentation  
 - Problem Solving: Timezone fix, PID cleanup, Backfill support
-## Production Recommendations
+  
+## Production Recommendations  
 
-1. Generate secure Fernet Key
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
+1. Generate secure Fernet Key  
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  
 2. Update .env with secure values
-FERNET_KEY=<generated_key>
-POSTGRES_PASSWORD=<secure_password>
-AIRFLOW_PASSWORD=<secure_password>
+FERNET_KEY=<generated_key>  
+POSTGRES_PASSWORD=<secure_password>  
+AIRFLOW_PASSWORD=<secure_password>  
+3. Enable SSL for database connections  
+4. Implement secrets management (AWS Secrets Manager, HashiCorp Vault)  
+5. Add network policies and firewall rules  
 
-3. Enable SSL for database connections
-4. Implement secrets management (AWS Secrets Manager, HashiCorp Vault)
-5. Add network policies and firewall rules
-
-## 👤 Author: Dat Chu Quoc 
+## 👤 Author: Dat Chu Quoc (cupeedrl)
 
 🔗 GitHub: https://github.com/cupeedrl
 
