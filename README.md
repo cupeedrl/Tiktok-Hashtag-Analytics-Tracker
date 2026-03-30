@@ -3,23 +3,41 @@ End-to-end Data Pipeline for TikTok Hashtag Analytics using Apache Airflow, Post
 
 ## 📋 Executive Summary
 A production-grade Data Engineering pipeline that processes social media analytics data from extraction through visualization. Built to demonstrate industry-standard practices in ETL orchestration, data warehousing, and business intelligence.  
-- Pipeline Tasks: 6 orchestrated tasks with retry logic  
-- Data Quality Checks: 5 validation rules  
-- Data Tables: 5 tables (Star Schema)  
-- Schedule: Daily automated execution (@daily)  
-- Backfill Support: Safe for historical data processing  
-- Date Range: 4,018 days (2020-2030)  
-## 🎯 Business Problem
-Marketing teams need real-time visibility into hashtag performance to:  
-- Identify trending topics before competitors  
-- Optimize content strategy based on engagement metrics  
-- Track campaign performance across multiple hashtags  
-- Make data-driven decisions on ad spend allocation  
-This pipeline solves that by providing:  
-- Automated daily data collection  
-- Clean, analytics-ready data warehouse  
-- Interactive dashboards for stakeholder consumption
-- Data quality enforcement at every stage
+
+## 🔑 Key Features
+
+| Feature | Implementation | Business Value |
+| :--- | :--- | :--- |
+| **Idempotent Design** | UPSERT patterns (`ON CONFLICT DO UPDATE`), date-based deduplication | Safe re-runs without data duplication or loss |
+| **Data Quality Gates** | 5 automated checks (NULL, negative values, min records, duplicates, constraints) | Ensures data integrity at ingestion; prevents warehouse corruption |
+| **Error Handling** | 2 retries with 30s delay, 10min timeout, transaction rollback, comprehensive logging | Pipeline resilience against transient failures |
+| **Dynamic Date Handling** | Jinja templating (`{{ ds }}`) for execution_date-specific processing | Enables backfill operations and historical data processing |
+| **Incremental Load** | Date-partitioned processing with `NOT EXISTS` and `ON CONFLICT` patterns | Efficient resource utilization; only processes new data |
+| **Monitoring** | Health checks, task start/end logging, error formatting | Proactive issue detection; easier debugging |
+| **Scalable Architecture** | Star schema with pre-computed rankings, window functions (`RANK()`) | Fast analytical queries; minimal JOINs, easy to extend |
+
+## 🎯 Business Problems Solved
+Social media marketers and content creators face challenges in:
+- **Manual Data Collection**: Tracking hashtag performance across TikTok requires repetitive, time-consuming manual data extraction
+- **Lack of Automation**: No systematic way to monitor daily hashtag metrics (views, likes, shares, engagement rate)
+- **Data Quality Concerns**: Inconsistent data validation leads to unreliable analytics and poor decision-making
+- **No Historical Tracking**: Difficulty analyzing trends and comparing hashtag performance over time
+- **Fragmented Insights**: Metrics scattered across platforms without centralized warehouse for analysis
+
+### The Solution
+This ETL pipeline automates the end-to-end process:
+1. **Automated Daily Extraction**: Fetches hashtag metrics automatically at scheduled intervals
+2. **Centralized Data Warehouse**: Stores all metrics in star schema optimized for analytics queries
+3. **Data Quality Gates**: Validates data integrity before loading (null checks, duplicate detection, constraint validation)
+4. **Historical Trend Analysis**: Maintains historical data for time-series analysis and performance comparison
+5. **Pre-computed Rankings**: Aggregation layer provides fast access to top-performing hashtags without complex queries
+6. **Idempotent Design**: Safe to re-run without data duplication, ensuring reliable daily updates
+
+### Business Impact
+- ⏱️ **Time Savings**: Eliminates manual data collection (estimated 2-3 hours/week saved)
+- 📊 **Data Reliability**: Automated validation ensures 0% null values in critical columns
+- 📈 **Actionable Insights**: Dashboard enables quick identification of trending hashtags and category performance
+- 🔄 **Scalability**: Pipeline design supports adding more hashtags or metrics without architectural changes
 
 ## Infrastructure Components
 
@@ -34,27 +52,6 @@ This pipeline solves that by providing:
 ## Technical Architecture:
 <img width="1362" height="722" alt="image" src="https://github.com/user-attachments/assets/92ddf58c-d721-4673-9d93-65868d6c0095" />
 
-## 📊 Dashboard Screenshots
-### Metabase Overview - Data Quality & Hashtag Distribution  
-<img width="1564" height="853" alt="Overview" src="https://github.com/user-attachments/assets/5a853eb7-ecc5-4162-ace7-931b78d892f6" />****
-### Metabase Analytics - Trends & Metrics Distribution
-- Top Hashtags by Views:
-  
-<img width="1919" height="801" alt="Top_hashtag_by_view" src="https://github.com/user-attachments/assets/1bfab5f8-bc64-4bb0-8b2e-1f8111a566ce" />
-- Daily Engagement Rate Trend:
-
-<img width="1919" height="806" alt="Daily_Engagement_Rate_Trend" src="https://github.com/user-attachments/assets/feb5d42e-4702-4172-a074-0bbafac0b372" />  
-
-### Data Engineering Best Practices  
-
-| Feature           | Implementation                                      | Business Value                                     |
-|-------------------|-----------------------------------------------------|----------------------------------------------------|
-| Idempotency       | UPSERT logic, date-based deduplication              | Safe re-runs without data duplication              |
-| Data Quality      | 5 validation checks (NULL, negative values, min records) | Ensures data integrity at ingestion            |
-| Error Handling    | 2 retries with 30s delay, 10min timeout             | Pipeline resilience against transient failures     |
-| Incremental Load  | Date-partitioned processing with `{{ ds }}`         | Efficient resource utilization                     |
-| Monitoring        | Health checks, comprehensive logging                | Proactive issue detection                          |
-| Backfill Support  | Uses `execution_date` not `datetime.now()`          | Safe historical data processing                    |
 ## Data Modeling
 
 Dimensional Modeling (Star Schema)
@@ -128,7 +125,7 @@ Get-Content db.sql | docker-compose exec -T postgres_dw psql -U postgres -d tikt
 ```
 
 ### Access Points
--Airflow (Pipeline monitoring): http://localhost:8080 
+-Airflow (Pipeline monitoring): http://localhost:8080  
 -Metabase (Business dashboards): http://localhost:3000  
 -PostgreSQL (Direct SQL access): localhost: 5433  
 
@@ -138,6 +135,7 @@ Get-Content db.sql | docker-compose exec -T postgres_dw psql -U postgres -d tikt
 -Trigger manual run (Play button ▶)  
 -Monitor task completion (~2-3 minutes)  
 -Verify all tasks show success status  ✅
+
 ### Sample queries  
 - Top Performing Hashtags:  
 ```sql  
@@ -189,16 +187,24 @@ FROM current_week c
 LEFT JOIN previous_week p ON c.hashtag = p.hashtag
 ORDER BY growth_percent DESC NULLS LAST;  
 ```
-## 🔧 Technical Highlights  
+## Dashboard Screenshots
+### Metabase Overview - Data Quality & Hashtag Distribution  
+<img width="1564" height="853" alt="Overview" src="https://github.com/user-attachments/assets/5a853eb7-ecc5-4162-ace7-931b78d892f6" />
 
-1. Execution_date
+### Metabase Analytics - Trends & Metrics Distribution  
+- Top Hashtags by Views:
+  <img width="1919" height="801" alt="Top_hashtag_by_view" src="https://github.com/user-attachments/assets/1bfab5f8-bc64-4bb0-8b2e-1f8111a566ce" />  
+- Daily Engagement Rate Trend:
+  <img width="1919" height="806" alt="Daily_Engagement_Rate_Trend" src="https://github.com/user-attachments/assets/feb5d42e-4702-4172-a074-0bbafac0b372" />  
+
+## 🔧 Technical Highlights  
+1. Execution_date  
 -Problem: Using datetime.now() breaks backfill operations.  
 -Solution: Use Airflow's {{ ds }} template variable:  
 ```sql
 WHERE report_date = '{{ ds }}' 
 ```
--Result: Safe to backfill historical data without processing wrong dates.  
-2. Bulk Insert for Performance  
+2. Bulk insert for perfomance     
 -Problem: Row-by-row insert is slow for large datasets.  
 -Solution: Use hook.insert_rows() with list of tuples:  
 ```sql
@@ -209,6 +215,9 @@ hook.insert_rows(
     commit=True
 )
 ```
+
+-Result: Safe to backfill historical data without processing wrong dates.  
+
 3. Data Quality Enforcement    
 -Problem: Bad data propagates through pipeline.  
 -Solution: 5 validation checks before transformation:  
@@ -222,21 +231,21 @@ checks = {
 }
 ```
 4. Star Schema Compliance  
-Problem: Direct date insert violates foreign key constraints.  
-Solution: INNER JOIN with dim_date:  
+-Problem: Direct date insert violates foreign key constraints.  
+-Solution: INNER JOIN with dim_date:  
 ```sql
 INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
 ```
 5. Modular Code Architecture  
-Problem: Monolithic DAGs are hard to maintain and test.  
-Solution: Separate modules for extractors, validators, SQL, config:  
-Result: Pipeline fails fast on bad data, preventing corruption.  
+-Problem: Monolithic DAGs are hard to maintain and test.  
+-Solution: Separate modules for extractors, validators, SQL, config:  
+-Result: Pipeline fails fast on bad data, preventing corruption.  
     dags/    
     ├── extractors/tiktok_api_extractor.py  
     ├── validators/data_quality_validator.py  
     ├── sql/*.sql  
-    └── config/settings.py  
-   
+    └── config/settings.py
+
 ## Skills Demonstrated
 - Data Orchestration: Apache Airflow, DAG design, Task dependencies  
 - Data Warehousing: PostgreSQL, Star Schema, Dimensional modeling  
@@ -247,27 +256,18 @@ Result: Pipeline fails fast on bad data, preventing corruption.
 - Code Quality: Modular architecture, Type hints, Documentation  
 - Problem Solving: Timezone fix, PID cleanup, Backfill support
   
-## Production Recommendations  
-
-1. Generate secure Fernet Key  
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  
-2. Update .env with secure values
-FERNET_KEY=<generated_key>  
-POSTGRES_PASSWORD=<secure_password>  
-AIRFLOW_PASSWORD=<secure_password>  
-3. Enable SSL for database connections  
-4. Implement secrets management (AWS Secrets Manager, HashiCorp Vault)  
-5. Add network policies and firewall rules  
-
+## 🚀 Future Improvements
+- [ ] Integrate real TikTok API
+- [ ] Add dbt for transformations
+- [ ] Deploy to AWS/GCP
+- [ ] Add unit tests with pytest
+- [ ] Implement CI/CD with GitHub Actions
+      
 ## 👤 Author: Dat Chu Quoc (cupeedrl)
 
 🔗 GitHub: https://github.com/cupeedrl
-
 📧 Gmail: whisperkuu.41@gmail.com
-
 💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/
-
 📄 MIT License - Feel free to use for learning and portfolio purposes!
-
 
 Last Updated: March 2026
