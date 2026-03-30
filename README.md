@@ -3,23 +3,23 @@ End-to-end Data Pipeline for TikTok Hashtag Analytics using Apache Airflow, Post
 
 ## 📋 Executive Summary
 A production-grade Data Engineering pipeline that processes social media analytics data from extraction through visualization. Built to demonstrate industry-standard practices in ETL orchestration, data warehousing, and business intelligence.  
-    -Pipeline Tasks: 6 orchestrated tasks with retry logic  
-    -Data Quality Checks: 5 validation rules  
-    -Data Tables: 5 tables (Star Schema)  
-    -Schedule: Daily automated execution (@daily)  
-    -Backfill Support: Safe for historical data processing  
-    -Date Range: 4,018 days (2020-2030)  
+- Pipeline Tasks: 6 orchestrated tasks with retry logic  
+- Data Quality Checks: 5 validation rules  
+- Data Tables: 5 tables (Star Schema)  
+- Schedule: Daily automated execution (@daily)  
+- Backfill Support: Safe for historical data processing  
+- Date Range: 4,018 days (2020-2030)  
 ## 🎯 Business Problem
-- Marketing teams need real-time visibility into hashtag performance to:  
-    -Identify trending topics before competitors  
-    -Optimize content strategy based on engagement metrics  
-    -Track campaign performance across multiple hashtags  
-    -Make data-driven decisions on ad spend allocation  
-- This pipeline solves that by providing:  
-    -Automated daily data collection  
-    -Clean, analytics-ready data warehouse  
-    -Interactive dashboards for stakeholder consumption
-    -Data quality enforcement at every stage  
+Marketing teams need real-time visibility into hashtag performance to:  
+- Identify trending topics before competitors  
+- Optimize content strategy based on engagement metrics  
+- Track campaign performance across multiple hashtags  
+- Make data-driven decisions on ad spend allocation  
+This pipeline solves that by providing:  
+- Automated daily data collection  
+- Clean, analytics-ready data warehouse  
+- Interactive dashboards for stakeholder consumption
+- Data quality enforcement at every stage  
 ## Infrastructure Components
 
 | Component         | Technology           | Purpose                                                  |
@@ -33,19 +33,6 @@ A production-grade Data Engineering pipeline that processes social media analyti
 ## Technical Architecture:
 <img width="1362" height="722" alt="image" src="https://github.com/user-attachments/assets/92ddf58c-d721-4673-9d93-65868d6c0095" />
 
-# Overview
-
-This project demonstrates a complete Data Engineering workflow for tracking and analyzing TikTok hashtag performance. It simulates a real-world analytics pipeline that:  
--Extracts data from a mock TikTok API (simulating social media metrics)  
--Transforms raw data into analytics-ready format using dimensional modeling  
--Loads processed data into a PostgreSQL Data Warehouse  
--Visualizes insights through an interactive Metabase BI Dashboard  
-
-Business Value:  
--Track trending hashtags in real-time  
--Analyze engagement metrics (views, likes, shares, comments)  
--Generate daily rankings and week-over-week growth  
--Enable data-driven decisions for marketing campaigns  
 
 ## Infrastructure Components  
 
@@ -108,7 +95,7 @@ Python 3.8+             # https://python.org
 4GB RAM minimum         # 8GB recommended  
 5GB available disk      # For containers + data  
 
-### Intallation
+### Installation
 1. Clone repository
 git clone https://github.com/cupeedrl/tiktok-hashtag-analytics.git
 cd tiktok-analytics-de
@@ -123,9 +110,9 @@ docker-compose up -d
 timeout /t 90
 
 5. Verify health status
-docker-compose ps
+docker-compose ps  
 
-### Expected Ouput:
+### Expected Ouput:   
 
 | NAME               | STATUS        | PORTS                   |
 |--------------------|---------------|-------------------------|
@@ -141,9 +128,9 @@ Get-Content db.sql | docker-compose exec -T postgres_dw psql -U postgres -d tikt
 ```
 
 ### Access Points
--Airflow (Pipeline monitoring): http://localhost:8080
--Metabase (Business dashboards): http://localhost:3000
--PostgreSQL (Direct SQL access): localhost: 5433
+-Airflow (Pipeline monitoring): http://localhost:8080 
+-Metabase (Business dashboards): http://localhost:3000  
+-PostgreSQL (Direct SQL access): localhost: 5433  
 
 ### Execute Pipeline
 -Navigate to Airflow UI (http://localhost:8080)  
@@ -204,15 +191,16 @@ ORDER BY growth_percent DESC NULLS LAST;
 ```
 ## 🔧 Technical Highlights  
 
-1. Problem: Using datetime.now() breaks backfill operations.  
-Solution: Use Airflow's {{ ds }} template variable:  
+1. Execution_date
+-Problem: Using datetime.now() breaks backfill operations.  
+-Solution: Use Airflow's {{ ds }} template variable:  
 ```sql
 WHERE report_date = '{{ ds }}'  -- Uses execution_date, not current date
 ```
 Result: Safe to backfill historical data without processing wrong dates.  
 2. Bulk Insert for Performance  
-Problem: Row-by-row insert is slow for large datasets.  
-Solution: Use hook.insert_rows() with list of tuples:  
+-Problem: Row-by-row insert is slow for large datasets.  
+-Solution: Use hook.insert_rows() with list of tuples:  
 ```sql
 hook.insert_rows(
     table='stg_hashtag_raw',
@@ -222,8 +210,8 @@ hook.insert_rows(
 )
 ```
 3. Data Quality Enforcement    
-Problem: Bad data propagates through pipeline.  
-Solution: 5 validation checks before transformation:  
+-Problem: Bad data propagates through pipeline.  
+-Solution: 5 validation checks before transformation:  
 ```python
 checks = {
     "null_hashtag": "SELECT COUNT(*) ... WHERE hashtag IS NULL",
