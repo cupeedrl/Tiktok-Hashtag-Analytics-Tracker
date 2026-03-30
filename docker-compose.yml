@@ -73,6 +73,7 @@ services:
 
   airflow-webserver:
     image: apache/airflow:2.8.0-python3.10
+    user: "${AIRFLOW_UID:-50000}:0"  
     command: >
       bash -c "rm -f /opt/airflow/airflow-webserver.pid &&
               pip install -r /requirements.txt &&
@@ -87,8 +88,11 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
-      - ./:/opt/airflow
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs 
       - ./requirements.txt:/requirements.txt
+      - ./dags:/opt/airflow/dags:cached
+      - ./logs:/opt/airflow/logs:cached 
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 30s
@@ -105,6 +109,7 @@ services:
 
   airflow-scheduler:
     image: apache/airflow:2.8.0-python3.10
+    user: "${AIRFLOW_UID:-50000}:0"  
     command: >
       bash -c "rm -f /opt/airflow/airflow-scheduler.pid &&
               pip install -r /requirements.txt &&
@@ -116,8 +121,11 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
-      - ./:/opt/airflow
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs 
       - ./requirements.txt:/requirements.txt
+      - ./dags:/opt/airflow/dags:cached
+      - ./logs:/opt/airflow/logs:cached 
     depends_on:
       airflow-init:
         condition: service_completed_successfully

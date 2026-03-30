@@ -1,160 +1,131 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+
+"""
+TikTok Hashtag ETL Pipeline - Main DAG
+"""
+
+# ──────────────────────────────────────────────────────────────
+# AIRFLOW IMPORTS
+# ──────────────────────────────────────────────────────────────
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
-from airflow.hooks.postgres_hook import PostgresHook
 from datetime import datetime, timedelta
+import logging
 
+# ──────────────────────────────────────────────────────────────
+# CONFIG IMPORTS
+# ──────────────────────────────────────────────────────────────
+from config.app_settings import (
+    DAG_ID,
+    DAG_DESCRIPTION,
+    DAG_TAGS,
+    DAG_OWNER,
+    DAG_START_DATE,
+    DAG_SCHEDULE,
+    DAG_CATCHUP,
+    DAG_MAX_ACTIVE_RUNS,
+    TASK_RETRIES,
+    TASK_RETRY_DELAY,
+    TASK_EXECUTION_TIMEOUT,
+    POSTGRES_CONN_ID,
+)
 
+# ──────────────────────────────────────────────────────────────
+# MODULE IMPORTS
+# ──────────────────────────────────────────────────────────────
+from extractors.tiktok_api_extractor import TikTokAPIExtractor
+from validators.data_quality_validator import DataQualityValidator
+from utils.helpers import log_task_start, log_task_end, format_error_message
+
+logger = logging.getLogger(__name__)
+
+# ──────────────────────────────────────────────────────────────
+# DEFAULT ARGS
+# ──────────────────────────────────────────────────────────────
 default_args = {
-    "owner": "dat",
-    "retries": 2,
-    "retry_delay": timedelta(seconds=10)
+    "owner": DAG_OWNER,
+    "retries": TASK_RETRIES,
+    "retry_delay": TASK_RETRY_DELAY,
+    "execution_timeout": TASK_EXECUTION_TIMEOUT,
+    "on_failure_callback": lambda context: logger.error(
+        format_error_message(Exception("DAG Failed"), context)
+    ),
 }
 
-def mock_tiktok_api(**context):
-    """
-    Task 1: Lấy data từ TikTokMockAPI và insert vào stg_hashtag_raw
-    """
-    from mock_api import TikTokMockAPI
+# ──────────────────────────────────────────────────────────────
+# TASK FUNCTIONS
+# ──────────────────────────────────────────────────────────────
+def extract_task(**context):
+    log_task_start("extract", context['ds'])
+    extractor = TikTokAPIExtractor(postgres_conn_id=POSTGRES_CONN_ID)
+    result = extractor.extract_and_load(report_date=context['ds'])
+    log_task_end("extract", result)
+    return result
 
-    api = TikTokMockAPI()
+def validate_task(**context):
+    log_task_start("validate", context['ds'])
+    validator = DataQualityValidator(postgres_conn_id=POSTGRES_CONN_ID)
+    result = validator.validate(report_date=context['ds'])
+    log_task_end("validate", result)
+    return result
 
-    
-    today = datetime.utcnow().date()
+def load_sql(filename: str) -> str:
+    import os
+    dag_dir = Path(__file__).parent
+    with open(os.path.join(dag_dir, 'sql', filename), 'r') as f:
+        return f.read()
 
-    data = api.fetch_all_hashtags(today)
-
-    rows = []
-    for row in data:
-        rows.append(f"""(
-            '{row["hashtag"]}',
-            '{row["report_date"]}',
-            {row["views"]},
-            {row["likes"]},
-            {row["shares"]},
-            {row["comments"]},
-            {row["engagement_rate"]},
-            '{row["extracted_at"]}'
-        )""")
-
-    values_str = ",\n".join(rows)
-
-    insert_sql = f"""
-        INSERT INTO stg_hashtag_raw 
-        (hashtag, report_date, views, likes, shares, comments, engagement_rate, extracted_at)
-        VALUES {values_str};
-    """
-
-    postgres_hook = PostgresHook(postgres_conn_id="postgres_dw")
-    postgres_hook.run(insert_sql)
-
-    return f"Inserted {len(data)} records into stg_hashtag_raw"
-
-
+# ──────────────────────────────────────────────────────────────
+# DAG DEFINITION
+# ──────────────────────────────────────────────────────────────
 with DAG(
-    dag_id="tiktok_etl_dag",
-    start_date=datetime(2024, 1, 1),
-    schedule="@daily",
-    catchup=False,
+    dag_id=DAG_ID,
+    start_date=datetime.strptime(DAG_START_DATE, "%Y-%m-%d"),
+    schedule=DAG_SCHEDULE,
+    catchup=DAG_CATCHUP,
     default_args=default_args,
-    description="TikTok Hashtag Data Warehouse ETL",
-    tags=["tiktok", "etl", "social-media"],
-    max_active_runs=1
+    description=DAG_DESCRIPTION,
+    tags=DAG_TAGS,
+    max_active_runs=DAG_MAX_ACTIVE_RUNS,
 ) as dag:
 
     clean_staging = PostgresOperator(
         task_id="clean_staging",
-        postgres_conn_id="postgres_dw",
-        sql="""
-        DELETE FROM stg_hashtag_raw
-        WHERE report_date = CURRENT_DATE;
-        """
+        postgres_conn_id=POSTGRES_CONN_ID,
+        sql=load_sql('clean_staging.sql'),
     )
 
-    mock_api = PythonOperator(
+    extract = PythonOperator(
         task_id="mock_api_data",
-        python_callable=mock_tiktok_api
+        python_callable=extract_task,
+        provide_context=True,
+    )
+
+    validate = PythonOperator(
+        task_id="check_data_quality",
+        python_callable=validate_task,
+        provide_context=True,
     )
 
     load_dim_hashtag = PostgresOperator(
         task_id="load_dim_hashtag",
-        postgres_conn_id="postgres_dw",
-        sql="""
-        INSERT INTO dim_hashtag (hashtag_name, category, created_at, is_active)
-        SELECT DISTINCT 
-            hashtag,
-            'Technology' as category,
-            CURRENT_TIMESTAMP as created_at,
-            TRUE as is_active
-        FROM stg_hashtag_raw s
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM dim_hashtag d
-            WHERE d.hashtag_name = s.hashtag
-        )
-        ON CONFLICT (hashtag_name) DO NOTHING;
-        """
+        postgres_conn_id=POSTGRES_CONN_ID,
+        sql=load_sql('load_dim_hashtag.sql'),
     )
 
     transform_to_fact = PostgresOperator(
         task_id="transform_to_fact",
-        postgres_conn_id="postgres_dw",
-        sql="""
-        INSERT INTO fact_hashtag_daily
-        (
-            date_id,
-            hashtag_id,
-            total_views,
-            total_likes,
-            total_shares,
-            total_comments,
-            engagement_rate
-        )
-        SELECT
-            s.report_date::date as date_id,
-            h.hashtag_id,
-            SUM(s.views) as total_views,
-            SUM(s.likes) as total_likes,
-            SUM(s.shares) as total_shares,
-            SUM(s.comments) as total_comments,
-            AVG(s.engagement_rate) as engagement_rate
-        FROM stg_hashtag_raw s
-        JOIN dim_hashtag h ON s.hashtag = h.hashtag_name
-        GROUP BY s.report_date, h.hashtag_id
-        ON CONFLICT (date_id, hashtag_id)
-        DO UPDATE SET
-            total_views = EXCLUDED.total_views,
-            total_likes = EXCLUDED.total_likes,
-            total_shares = EXCLUDED.total_shares,
-            total_comments = EXCLUDED.total_comments,
-            engagement_rate = EXCLUDED.engagement_rate;
-        """
+        postgres_conn_id=POSTGRES_CONN_ID,
+        sql=load_sql('transform_to_fact.sql'),
     )
 
-  
     build_hashtag_rank = PostgresOperator(
         task_id="build_hashtag_rank",
-        postgres_conn_id="postgres_dw",
-        sql="""
-        DELETE FROM agg_hashtag_rank;
-
-        INSERT INTO agg_hashtag_rank
-        (
-            report_date,
-            hashtag,
-            total_views,
-            daily_rank,
-            wow_growth
-        )
-        SELECT
-            f.date_id::date as report_date,
-            h.hashtag_name as hashtag,
-            f.total_views,
-            RANK() OVER (PARTITION BY f.date_id ORDER BY f.total_views DESC) as daily_rank,
-            NULL as wow_growth
-        FROM fact_hashtag_daily f
-        JOIN dim_hashtag h ON f.hashtag_id = h.hashtag_id;
-        """
+        postgres_conn_id=POSTGRES_CONN_ID,
+        sql=load_sql('build_hashtag_rank.sql'),
     )
 
-    clean_staging >> mock_api >> load_dim_hashtag >> transform_to_fact >> build_hashtag_rank
+    clean_staging >> extract >> validate >> load_dim_hashtag >> transform_to_fact >> build_hashtag_rank
