@@ -1,8 +1,10 @@
 # Tiktok-Hashtag-Analytics-Tracker
-End-to-end Data Pipeline for TikTok Hashtag Analytics using Apache Airflow, PostgreSQL, and Metabase
 
-## 📋 Executive Summary
-A production-grade Data Engineering pipeline that processes social media analytics data from extraction through visualization. Built to demonstrate industry-standard practices in ETL orchestration, data warehousing, and business intelligence.  
+## 📋 Executive Summary  
+
+This project demonstrates end-to-end data engineering capabilities through the design and implementation of an automated ETL pipeline for social media analytics. The system extracts, transforms, and loads hashtag performance metrics into a dimensional data warehouse, enabling data-driven decision-making for content strategy and trend analysis.
+
+Built with industry-standard tools (Apache Airflow, PostgreSQL, Docker) and best practices (star schema, idempotent design, data quality validation), this pipeline showcases practical skills in data orchestration, warehousing, and business intelligence—essential competencies for modern data engineering roles.
 
 ## 🔑 Key Features
 
@@ -17,27 +19,14 @@ A production-grade Data Engineering pipeline that processes social media analyti
 | **Scalable Architecture** | Star schema with pre-computed rankings, window functions (`RANK()`) | Fast analytical queries; minimal JOINs, easy to extend |
 
 ## 🎯 Business Problems Solved
-Social media marketers and content creators face challenges in:
-- **Manual Data Collection**: Tracking hashtag performance across TikTok requires repetitive, time-consuming manual data extraction
-- **Lack of Automation**: No systematic way to monitor daily hashtag metrics (views, likes, shares, engagement rate)
-- **Data Quality Concerns**: Inconsistent data validation leads to unreliable analytics and poor decision-making
-- **No Historical Tracking**: Difficulty analyzing trends and comparing hashtag performance over time
-- **Fragmented Insights**: Metrics scattered across platforms without centralized warehouse for analysis
 
-### The Solution
-This ETL pipeline automates the end-to-end process:
-1. **Automated Daily Extraction**: Fetches hashtag metrics automatically at scheduled intervals
-2. **Centralized Data Warehouse**: Stores all metrics in star schema optimized for analytics queries
-3. **Data Quality Gates**: Validates data integrity before loading (null checks, duplicate detection, constraint validation)
-4. **Historical Trend Analysis**: Maintains historical data for time-series analysis and performance comparison
-5. **Pre-computed Rankings**: Aggregation layer provides fast access to top-performing hashtags without complex queries
-6. **Idempotent Design**: Safe to re-run without data duplication, ensuring reliable daily updates
-
-### Business Impact
-- ⏱️ **Time Savings**: Eliminates manual data collection (estimated 2-3 hours/week saved)
-- 📊 **Data Reliability**: Automated validation ensures 0% null values in critical columns
-- 📈 **Actionable Insights**: Dashboard enables quick identification of trending hashtags and category performance
-- 🔄 **Scalability**: Pipeline design supports adding more hashtags or metrics without architectural changes
+| Challenge | Solution | Impact |
+| :--- | :--- | :--- |
+| Manual data collection is slow & error-prone | Automated daily ETL with Airflow orchestration | ⏱️ Saves 2-3 hours/week |
+| No centralized warehouse for analytics | Star schema in PostgreSQL optimized for queries | 📊 Fast, reliable insights |
+| Bad data leads to wrong decisions | 5 automated quality checks before loading | ✅ 100% data integrity |
+| Hard to track trends over time | Historical data + pre-computed rankings | 📈 Instant trend analysis |
+| Pipeline re-runs cause duplicates | Idempotent UPSERT patterns (`ON CONFLICT`) | 🔄 Safe backfill & retry |
 
 ## Infrastructure Components
 
