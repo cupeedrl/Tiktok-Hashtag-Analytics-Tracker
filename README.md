@@ -253,10 +253,9 @@ INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
 - [ ] Implement CI/CD with GitHub Actions
       
 ## 👤 Author: Dat Chu Quoc (cupeedrl)
-
-🔗 GitHub: https://github.com/cupeedrl
-📧 Gmail: whisperkuu.41@gmail.com
-💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/
-📄 MIT License - Feel free to use for learning and portfolio purposes!
+🔗 GitHub: https://github.com/cupeedrl  
+📧 Gmail: whisperkuu.41@gmail.com  
+💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/  
+📄 MIT License - Feel free to use for learning and portfolio purposes!  
 
 Last Updated: March 2026
