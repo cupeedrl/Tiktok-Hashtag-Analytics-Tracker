@@ -36,5 +36,5 @@ RANKING_TABLE = "agg_hashtag_rank"
 # ──────────────────────────────────────────────────────────────
 # DATA QUALITY THRESHOLDS
 # ──────────────────────────────────────────────────────────────
-MIN_RECORDS_THRESHOLD = 1
+MIN_RECORDS_THRESHOLD = 10
 MAX_NULL_PERCENTAGE = 0

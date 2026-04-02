@@ -18,12 +18,18 @@ class TikTokMockAPI:
     
     def __init__(self):
         self.hashtags = [
-            "#marketing",
+            # Technology
+            "#tech", "#ai", "#coding",
+            # Business
+            "#marketing", "#entrepreneur", "#business",
+            # Entertainment
+            "#dance", "#music", "#comedy",
+            # Lifestyle
+            "#travel", "#food", "#fashion",
+            # Education
             "#learnontiktok",
-            "#dance",
-            "#food",
-            "#tech",
-            "#travel",
+            # Health
+            "#fitness", "#health",
         ]
     
     def _generate_seed(self, hashtag: str, report_date) -> int:
@@ -63,7 +69,7 @@ class TikTokMockAPI:
         logger.info(f"Fetching data for {report_date}")
         
         data = []
-        num_records = random.randint(20, 40)
+        num_records = random.randint(60, 90),
         
         for i in range(num_records):
             tag = random.choice(self.hashtags)

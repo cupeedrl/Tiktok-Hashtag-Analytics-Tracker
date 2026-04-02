@@ -1,27 +1,32 @@
+-- TIKTOK HASHTAG DATA WAREHOUSE
 
--- DATA WAREHOUSE: TIKTOK HASHTAG ANALYTICS
+DROP TABLE IF EXISTS fact_hashtag_daily CASCADE;
+DROP TABLE IF EXISTS agg_hashtag_rank CASCADE;
+DROP TABLE IF EXISTS dim_hashtag CASCADE;
+DROP TABLE IF EXISTS dim_date CASCADE;
+DROP TABLE IF EXISTS stg_hashtag_raw CASCADE;
 
--- 1. STAGING TABLE (Raw Data Layer)
--- Lưu dữ liệu thô từ API, chưa qua xử lý
--- =============================================
-CREATE TABLE IF NOT EXISTS stg_hashtag_raw (
+-- TAGING TABLE (RAW DATA - MINIMAL LOGIC)
+CREATE TABLE stg_hashtag_raw (
     id SERIAL PRIMARY KEY,
-    hashtag VARCHAR(255) NOT NULL,
+    hashtag_name VARCHAR(255) NOT NULL,
     report_date DATE NOT NULL,
-    views INTEGER,
-    likes INTEGER,
-    shares INTEGER,
-    comments INTEGER,
-    engagement_rate DECIMAL(10, 4),
+    views BIGINT,
+    likes BIGINT,
+    shares BIGINT,
+    comments BIGINT,
+    engagement_rate DECIMAL(10,4),
     extracted_at TIMESTAMP,
-    loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(hashtag_name, report_date)
 );
 
--- =============================================
--- 2. DIMENSION TABLE: DATE (Core Layer)
--- Quản lý thông tin thời gian
--- =============================================
-CREATE TABLE IF NOT EXISTS dim_date (
+CREATE INDEX idx_stg_report_date ON stg_hashtag_raw(report_date);
+CREATE INDEX idx_stg_hashtag_name ON stg_hashtag_raw(hashtag_name);
+
+-- DIMENSION TABLES
+
+CREATE TABLE dim_date (
     date_id DATE PRIMARY KEY,
     year INT,
     month INT,
@@ -32,72 +37,116 @@ CREATE TABLE IF NOT EXISTS dim_date (
     is_weekend BOOLEAN
 );
 
--- =============================================
--- 3. DIMENSION TABLE: HASHTAG (Core Layer)
--- Quản lý thông tin hashtag
--- =============================================
-CREATE TABLE IF NOT EXISTS dim_hashtag (
+CREATE INDEX idx_dim_date_year ON dim_date(year);
+CREATE INDEX idx_dim_date_month ON dim_date(month);
+
+-- HASHTAG DIMENSION
+CREATE TABLE dim_hashtag (
     hashtag_id SERIAL PRIMARY KEY,
-    hashtag_name VARCHAR(50) UNIQUE NOT NULL,
-    category VARCHAR(50),
+    hashtag_name VARCHAR(255) UNIQUE NOT NULL,
+    category VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- =============================================
--- 4. FACT TABLE: HASHTAG DAILY (Core Layer)
--- Trung tâm của Star Schema - Số liệu hàng ngày
--- =============================================
-CREATE TABLE IF NOT EXISTS fact_hashtag_daily (
+CREATE INDEX idx_dim_hashtag_name ON dim_hashtag(hashtag_name);
+
+
+-- FACT TABLE 
+
+CREATE TABLE fact_hashtag_daily (
     fact_id SERIAL PRIMARY KEY,
-    hashtag_id INT REFERENCES dim_hashtag(hashtag_id),
-    date_id DATE REFERENCES dim_date(date_id),
-    views BIGINT,
-    likes BIGINT,
-    shares BIGINT,
-    comments BIGINT,
-    engagement_rate DECIMAL(10,4),
+    hashtag_id INT NOT NULL REFERENCES dim_hashtag(hashtag_id),
+    date_id DATE NOT NULL REFERENCES dim_date(date_id),
+
+    views BIGINT CHECK (views >= 0),
+    likes BIGINT CHECK (likes >= 0),
+    shares BIGINT CHECK (shares >= 0),
+    comments BIGINT CHECK (comments >= 0),
+
+    engagement_rate DECIMAL(10,4) CHECK (engagement_rate BETWEEN 0 AND 1),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(date_id, hashtag_id)
 );
 
--- =============================================
--- 5. ANALYTICS TABLE: RANKING (Serving Layer)
--- Kết quả xếp hạng để Dashboard query nhanh
--- =============================================
-CREATE TABLE IF NOT EXISTS agg_hashtag_rank (
+CREATE INDEX idx_fact_hashtag_id ON fact_hashtag_daily(hashtag_id);
+CREATE INDEX idx_fact_date_id ON fact_hashtag_daily(date_id);
+
+-- AGG TABLE 
+CREATE TABLE agg_hashtag_rank (
     rank_id SERIAL PRIMARY KEY,
     report_date DATE NOT NULL,
-    hashtag VARCHAR(255) NOT NULL,
-    total_views BIGINT,
+    hashtag_id INT NOT NULL REFERENCES dim_hashtag(hashtag_id),
+    total_views BIGINT CHECK (total_views >= 0),
     rank_by_views INT,
-    UNIQUE(report_date, hashtag)
+
+    UNIQUE(report_date, hashtag_id)
 );
 
--- =============================================
--- INSERT DỮ LIỆU MẪU CHO DIM_DATE (2020-2030)
--- =============================================
-INSERT INTO dim_date (date_id, day_of_week, day_name, month, month_name, quarter, year, is_weekend)
+CREATE INDEX idx_agg_report_date ON agg_hashtag_rank(report_date);
+CREATE INDEX idx_agg_hashtag_id ON agg_hashtag_rank(hashtag_id);
+
+-- LOAD DIM_DATE
+INSERT INTO dim_date (
+    date_id,
+    year,
+    month,
+    day,
+    quarter,
+    week_of_year,
+    day_of_week,
+    is_weekend
+)
 SELECT 
-    d::date as date_id,
-    EXTRACT(YEAR FROM d)::int as year,
-    EXTRACT(MONTH FROM d)::int as month,
-    EXTRACT(DAY FROM d)::int as day,
-    EXTRACT(QUARTER FROM d)::int as quarter,
-    EXTRACT(WEEK FROM d)::int as week_of_year,
-    EXTRACT(DOW FROM d)::int as day_of_week,
-    EXTRACT(DOW FROM d) IN (0, 6) as is_weekend
-FROM generate_series('2024-01-01'::date, '2026-12-31'::date, '1 day'::interval) d
+    d::date,
+    EXTRACT(YEAR FROM d)::int,
+    EXTRACT(MONTH FROM d)::int,
+    EXTRACT(DAY FROM d)::int,
+    EXTRACT(QUARTER FROM d)::int,
+    EXTRACT(WEEK FROM d)::int,
+    EXTRACT(DOW FROM d)::int,
+    (EXTRACT(DOW FROM d) IN (0,6))
+FROM generate_series(
+    '2020-01-01'::date,
+    '2030-12-31'::date,
+    '1 day'::interval
+) d
 ON CONFLICT (date_id) DO NOTHING;
 
--- =============================================
--- INSERT DỮ LIỆU MẪU CHO DIM_HASHTAG (6 Hashtags)
--- =============================================
+
+-- LOAD DIM_HASHTAG
 INSERT INTO dim_hashtag (hashtag_name, category) VALUES 
-('#marketing', 'Business'),
-('#learnontiktok', 'Education'),
-('#dance', 'Entertainment'),
-('#food', 'Lifestyle'),
+-- Technology 
 ('#tech', 'Technology'),
-('#travel', 'Lifestyle')
+('#ai', 'Technology'),
+('#coding', 'Technology'),
+-- Business 
+('#marketing', 'Business'),
+('#entrepreneur', 'Business'),
+('#business', 'Business'),
+-- Entertainment 
+('#dance', 'Entertainment'),
+('#music', 'Entertainment'),
+('#comedy', 'Entertainment'),
+-- Lifestyle 
+('#travel', 'Lifestyle'),
+('#food', 'Lifestyle'),
+('#fashion', 'Lifestyle'),
+-- Education 
+('#learnontiktok', 'Education'),
+-- Health 
+('#fitness', 'Health'),
+('#health', 'Health')
 ON CONFLICT (hashtag_name) DO NOTHING;
+
+-- CHECK DATA
+SELECT 'stg_hashtag_raw' AS table_name, COUNT(*) FROM stg_hashtag_raw
+UNION ALL
+SELECT 'dim_hashtag', COUNT(*) FROM dim_hashtag
+UNION ALL
+SELECT 'dim_date', COUNT(*) FROM dim_date
+UNION ALL
+SELECT 'fact_hashtag_daily', COUNT(*) FROM fact_hashtag_daily
+UNION ALL
+SELECT 'agg_hashtag_rank', COUNT(*) FROM agg_hashtag_rank
+ORDER BY table_name;

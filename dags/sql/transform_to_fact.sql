@@ -17,7 +17,7 @@ SELECT
     SUM(s.comments) as comments,
     AVG(s.engagement_rate) as engagement_rate
 FROM stg_hashtag_raw s
-INNER JOIN dim_hashtag h ON s.hashtag = h.hashtag
+INNER JOIN dim_hashtag h ON s.hashtag_name = h.hashtag_name
 INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
 WHERE s.report_date = '{{ ds }}'    
 GROUP BY dd.date_id, h.hashtag_id

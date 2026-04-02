@@ -21,7 +21,7 @@ class DataQualityValidator:
         """Define data quality checks"""
         return {
             "null_hashtag": (
-                "SELECT COUNT(*) FROM stg_hashtag_raw WHERE hashtag IS NULL AND report_date = %s",
+                "SELECT COUNT(*) FROM stg_hashtag_raw WHERE hashtag_name IS NULL AND report_date = %s",
                 (report_date,)
             ),
             "null_views": (

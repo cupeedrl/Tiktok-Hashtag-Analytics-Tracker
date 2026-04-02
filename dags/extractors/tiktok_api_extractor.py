@@ -56,9 +56,9 @@ class TikTokAPIExtractor:
             for record in records:
                 cur.execute("""
                     INSERT INTO stg_hashtag_raw 
-                    (hashtag, report_date, views, likes, shares, comments, engagement_rate, extracted_at)
+                    (hashtag_name, report_date, views, likes, shares, comments, engagement_rate, extracted_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (hashtag, report_date) 
+                    ON CONFLICT (hashtag_name, report_date) 
                     DO UPDATE SET
                         views = EXCLUDED.views,
                         likes = EXCLUDED.likes,
