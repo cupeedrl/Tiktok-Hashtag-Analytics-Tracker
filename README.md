@@ -65,6 +65,9 @@ Dimensional Modeling (Star Schema)
 
 ## Dag flow
 clean_staging → mock_api_data → check_data_quality → load_dim_hashtag → transform_to_fact → build_hashtag_rank
+
+<img width="1892" height="712" alt="airflow-dag-graph" src="https://github.com/user-attachments/assets/36548aac-c7a8-414a-bf19-4a98c55fb14c" />
+
 | Task ID            | Type             | Description                                   |
 |--------------------|------------------|-----------------------------------------------|
 | clean_staging      | PostgresOperator | Delete old data for execution date            |
