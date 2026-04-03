@@ -54,19 +54,20 @@ Dimensional Modeling (Star Schema)
        dim_hashtag    fact_hashtag    agg_hashtag_rank
        (6 rows)       daily (6/day)   (6/day)
 
-| Table               | Type       | Purpose                              | Growth           |
-|---------------------|------------|--------------------------------------|------------------|
-| stg_hashtag_raw     | Staging    | Raw API data, audit trail            | ~30 rows/day     |
-| dim_date            | Dimension  | Time intelligence, no ETL            | Static (4,018)   |
-| dim_hashtag         | Dimension  | Hashtag master data                  | ~6 rows          |
-| fact_hashtag_daily  | Fact       | Grain: hashtag × day                 | ~6 rows/day      |
-| agg_hashtag_rank    | Analytics  | Pre-computed rankings                | ~6 rows/day      |
+| Table               | Type       | Purpose                              | Growth                  |
+|---------------------|------------|--------------------------------------|-------------------------|
+| stg_hashtag_raw     | Staging    | Raw API data, audit trail            | ~30 rows/day (20-40)    |
+| dim_date            | Dimension  | Time intelligence, no ETL            | Static (4,018)          |
+| dim_hashtag         | Dimension  | Hashtag master data (15 categories)  | 15 rows (total)         |
+| fact_hashtag_daily  | Fact       | Grain: hashtag × day                 | ~15 rows/day            |
+| agg_hashtag_rank    | Analytics  | Pre-computed rankings                | ~15 rows/day            |
 
 
 ## Dag flow
 clean_staging → mock_api_data → check_data_quality → load_dim_hashtag → transform_to_fact → build_hashtag_rank
 
-<img width="1892" height="712" alt="airflow-dag-graph" src="https://github.com/user-attachments/assets/36548aac-c7a8-414a-bf19-4a98c55fb14c" />
+<img width="1864" height="602" alt="airflow-dag-graph" src="https://github.com/user-attachments/assets/db291d6e-3890-47c6-b635-b1f02dca91f3" />
+
 
 | Task ID            | Type             | Description                                   |
 |--------------------|------------------|-----------------------------------------------|
@@ -117,9 +118,9 @@ Get-Content db.sql | docker-compose exec -T postgres_dw psql -U postgres -d tikt
 ```
 
 ### Access Points
--Airflow (Pipeline monitoring): http://localhost:8080  
--Metabase (Business dashboards): http://localhost:3000  
--PostgreSQL (Direct SQL access): localhost: 5433  
+- **Airflow** (Pipeline monitoring): http://localhost:8080  
+- **Metabase** (Business dashboards): http://localhost:3000  
+- **PostgreSQL** (Direct SQL access): localhost:5433  
 
 ### Execute Pipeline
 -Navigate to Airflow UI (http://localhost:8080)  
@@ -132,22 +133,22 @@ Get-Content db.sql | docker-compose exec -T postgres_dw psql -U postgres -d tikt
 - Top Performing Hashtags:  
 ```sql  
 SELECT 
-    hashtag,
-    total_views,
-    daily_rank,
-    wow_growth
-FROM agg_hashtag_rank
-WHERE report_date = CURRENT_DATE
-ORDER BY daily_rank ASC
+    h.hashtag_name,
+    a.total_views,
+    a.rank_by_views
+FROM agg_hashtag_rank a
+JOIN dim_hashtag h ON a.hashtag_id = h.hashtag_id
+WHERE a.report_date = CURRENT_DATE
+ORDER BY a.rank_by_views ASC
 LIMIT 10;
 ```
-- Engagement Rate Trend:  
+- Engagement Rate Trend by Hashtag:  
 ```sql  
-  SELECT 
+SELECT 
     f.date_id,
     h.hashtag_name,
     AVG(f.engagement_rate) as avg_engagement,
-    SUM(f.total_views) as total_views
+    SUM(f.views) as total_views
 FROM fact_hashtag_daily f
 JOIN dim_hashtag h ON f.hashtag_id = h.hashtag_id
 JOIN dim_date d ON f.date_id = d.date_id
@@ -158,26 +159,31 @@ ORDER BY f.date_id DESC;
 - Week-over-Week Growth:  
 ```sql  
 WITH current_week AS (
-    SELECT hashtag, SUM(total_views) as views
-    FROM agg_hashtag_rank
-    WHERE report_date >= CURRENT_DATE - INTERVAL '7 days'
-    GROUP BY hashtag
+    SELECT 
+        a.hashtag_id,
+        SUM(a.total_views) as views
+    FROM agg_hashtag_rank a
+    WHERE a.report_date >= CURRENT_DATE - INTERVAL '7 days'
+    GROUP BY a.hashtag_id
 ),
 previous_week AS (
-    SELECT hashtag, SUM(total_views) as views
-    FROM agg_hashtag_rank
+    SELECT 
+        a.hashtag_id,
+        SUM(a.total_views) as views
+    FROM agg_hashtag_rank a
     WHERE report_date BETWEEN CURRENT_DATE - INTERVAL '14 days' 
                           AND CURRENT_DATE - INTERVAL '7 days'
-    GROUP BY hashtag
+    GROUP BY a.hashtag_id
 )
 SELECT 
-    c.hashtag,
+    h.hashtag_name,
     c.views as current_week,
     p.views as previous_week,
     ROUND((c.views - p.views) * 100.0 / NULLIF(p.views, 0), 2) as growth_percent
 FROM current_week c
-LEFT JOIN previous_week p ON c.hashtag = p.hashtag
-ORDER BY growth_percent DESC NULLS LAST;  
+LEFT JOIN previous_week p ON c.hashtag_id = p.hashtag_id
+JOIN dim_hashtag h ON c.hashtag_id = h.hashtag_id
+ORDER BY growth_percent DESC NULLS LAST;
 ```
 ## Dashboard Screenshots
 ### Metabase Overview - Data Quality & Hashtag Distribution  
@@ -191,14 +197,16 @@ ORDER BY growth_percent DESC NULLS LAST;
 
 ## 🔧 Technical Highlights  
 1. Execution_date  
--Problem: Using datetime.now() breaks backfill operations.  
--Solution: Use Airflow's {{ ds }} template variable:  
+- **Problem**: Using `datetime.now()` breaks backfill operations.  
+- **Solution**: Use Airflow's `{{ ds }}` template variable:  
 ```sql
 WHERE report_date = '{{ ds }}' 
 ```
+-**Result**: Safe to backfill historical data without processing wrong dates.
+
 2. Bulk insert for perfomance     
--Problem: Row-by-row insert is slow for large datasets.  
--Solution: Use hook.insert_rows() with list of tuples:  
+- **Problem**: Row-by-row insert is slow for large datasets. 
+- **Solution**: Use hook.insert_rows() with list of tuples:
 ```sql
 hook.insert_rows(
     table='stg_hashtag_raw',
@@ -207,37 +215,40 @@ hook.insert_rows(
     commit=True
 )
 ```
-
--Result: Safe to backfill historical data without processing wrong dates.  
+-**Result**: 10x faster inserts vs row-by-row approach.
 
 3. Data Quality Enforcement    
--Problem: Bad data propagates through pipeline.  
--Solution: 5 validation checks before transformation:  
+-**Problem**: Bad data propagates through pipeline.  
+-**Solution**: 5 validation checks before transformation:  
 ```python
 checks = {
-    "null_hashtag": "SELECT COUNT(*) ... WHERE hashtag IS NULL",
-    "null_views": "SELECT COUNT(*) ... WHERE views IS NULL",
-    "negative_views": "SELECT COUNT(*) ... WHERE views < 0",
-    "negative_engagement": "SELECT COUNT(*) ... WHERE engagement_rate < 0",
-    "min_records": "SELECT COUNT(*) ... WHERE report_date = %s",
+    "null_hashtag": "SELECT COUNT(*) FROM stg_hashtag_raw WHERE hashtag_name IS NULL AND report_date = %s",
+    "null_views": "SELECT COUNT(*) FROM stg_hashtag_raw WHERE views IS NULL AND report_date = %s",
+    "negative_views": "SELECT COUNT(*) FROM stg_hashtag_raw WHERE views < 0 AND report_date = %s",
+    "negative_engagement": "SELECT COUNT(*) FROM stg_hashtag_raw WHERE engagement_rate < 0 AND report_date = %s",
+    "min_records": "SELECT COUNT(*) FROM stg_hashtag_raw WHERE report_date = %s",
 }
 ```
+-**Result**: Pipeline fails fast on bad data, preventing warehouse corruption.
+
 4. Star Schema Compliance  
--Problem: Direct date insert violates foreign key constraints.  
--Solution: INNER JOIN with dim_date:  
+-**Problem**: Direct date insert violates foreign key constraints.
+-**Solution**: INNER JOIN with dim_date for referential integrity:
 ```sql
 INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
 ```
+-**Result**: Enforced data consistency across fact and dimension tables.
 5. Modular Code Architecture  
--Problem: Monolithic DAGs are hard to maintain and test.  
--Solution: Separate modules for extractors, validators, SQL, config:  
--Result: Pipeline fails fast on bad data, preventing corruption.  
+-**Problem**: Monolithic DAGs are hard to maintain and test.  
+-**Solution**: Separate modules for extractors, validators, SQL, config:  
+```
     dags/    
     ├── extractors/tiktok_api_extractor.py  
     ├── validators/data_quality_validator.py  
     ├── sql/*.sql  
     └── config/settings.py
-
+```
+-**Result**: Pipeline fails fast on bad data, preventing corruption.  
 ## Skills Demonstrated
 - Data Orchestration: Apache Airflow, DAG design, Task dependencies  
 - Data Warehousing: PostgreSQL, Star Schema, Dimensional modeling  
