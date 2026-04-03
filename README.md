@@ -64,10 +64,6 @@ Dimensional Modeling (Star Schema)
 
 
 ## Dag flow
-clean_staging → mock_api_data → check_data_quality → load_dim_hashtag → transform_to_fact → build_hashtag_rank
-
-<img width="1864" height="602" alt="airflow-dag-graph" src="https://github.com/user-attachments/assets/db291d6e-3890-47c6-b635-b1f02dca91f3" />
-
 
 | Task ID            | Type             | Description                                   |
 |--------------------|------------------|-----------------------------------------------|
@@ -77,6 +73,8 @@ clean_staging → mock_api_data → check_data_quality → load_dim_hashtag → 
 | load_dim_hashtag   | PostgresOperator | Load unique hashtags to dimension             |
 | transform_to_fact  | PostgresOperator | Aggregate staging → fact table                |
 | build_hashtag_rank | PostgresOperator | Calculate daily rankings                      |
+
+<img width="1864" height="602" alt="airflow-dag-graph" src="https://github.com/user-attachments/assets/db291d6e-3890-47c6-b635-b1f02dca91f3" />
 
 ## Quick Start
 ### Required Software
@@ -185,16 +183,18 @@ LEFT JOIN previous_week p ON c.hashtag_id = p.hashtag_id
 JOIN dim_hashtag h ON c.hashtag_id = h.hashtag_id
 ORDER BY growth_percent DESC NULLS LAST;
 ```
-## Dashboard Screenshots
-### Metabase Overview - Data Quality & Hashtag Distribution  
-<img width="1564" height="853" alt="Overview" src="https://github.com/user-attachments/assets/5a853eb7-ecc5-4162-ace7-931b78d892f6" />
+### TikTok Analytics Overview
 
-### Metabase Analytics - Trends & Metrics Distribution  
-- Top Hashtags by Views:
-  <img width="1919" height="801" alt="Top_hashtag_by_view" src="https://github.com/user-attachments/assets/1bfab5f8-bc64-4bb0-8b2e-1f8111a566ce" />  
-- Daily Engagement Rate Trend:
-  <img width="1919" height="806" alt="Daily_Engagement_Rate_Trend" src="https://github.com/user-attachments/assets/feb5d42e-4702-4172-a074-0bbafac0b372" />  
+<img width="1125" height="742" alt="dashboard-overview" src="https://github.com/user-attachments/assets/f67b8955-7956-412f-af5f-2c8e82430817" />
+*Interactive dashboard showing hashtag performance metrics, data consistency, and 14-day trend analysis. All 15 hashtags tracked with 100% data completeness.*  
 
+
+**Key Metrics:**
+- Total hashtags: 15 across 5 categories
+- Data quality: 0 null values, 100% completeness
+- Top performer: #tech (highest views & engagement)
+- Pipeline status: All DAG runs successful
+  
 ## 🔧 Technical Highlights  
 1. Execution_date  
 - **Problem**: Using `datetime.now()` breaks backfill operations.  
@@ -270,6 +270,6 @@ INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
 🔗 GitHub: https://github.com/cupeedrl  
 📧 Gmail: whisperkuu.41@gmail.com  
 💼 LinkedIn: https://www.linkedin.com/in/dat-chu-quoc-583599387/  
-📄 MIT License - Feel free to use for learning and portfolio purposes!  
+📄 MIT License - Feel free to use for learning!  
 
 Last Updated: March 2026
