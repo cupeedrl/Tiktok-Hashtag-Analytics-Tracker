@@ -65,17 +65,17 @@ class TikTokMockAPI:
         }
     
     def fetch_all_hashtags(self, report_date) -> List[Dict]:
-        """Fetch data for all hashtags"""
+        """Fetch data for all hashtags - ALWAYS return 15 records/day (1 per hashtag)"""
         logger.info(f"Fetching data for {report_date}")
         
         data = []
-        num_records = random.randint(60, 90),
         
-        for i in range(num_records):
-            tag = random.choice(self.hashtags)
-            stat = self.get_hashtag_stats(tag, report_date)
+        # Loop qua TẤT CẢ 15 hashtags - không random selection
+        for hashtag in self.hashtags:
+            # Generate base stats với deterministic seed
+            stat = self.get_hashtag_stats(hashtag, report_date)
             
-            # Add variation
+            # Add variation để data trông "thực tế" hơn
             stat["views"] += random.randint(-3000, 3000)
             stat["likes"] += random.randint(-300, 300)
             stat["shares"] += random.randint(-80, 80)
@@ -86,5 +86,8 @@ class TikTokMockAPI:
             
             data.append(stat)
         
+        # Shuffle để order không bị predictable
         random.shuffle(data)
+        
+        logger.info(f"Fetched {len(data)} records ({len(self.hashtags)} hashtags)")
         return data
