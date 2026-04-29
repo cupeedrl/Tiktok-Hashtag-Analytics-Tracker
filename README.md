@@ -45,14 +45,6 @@ Built with industry-standard tools (Apache Airflow, PostgreSQL, Docker) and best
 
 Dimensional Modeling (Star Schema)
 
-            dim_date (4,018 rows)
-                       │
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-        ▼              ▼              ▼
-       dim_hashtag    fact_hashtag    agg_hashtag_rank
-       (6 rows)       daily (6/day)   (6/day)
 
 | Table               | Type       | Purpose                              | Growth                  |
 |---------------------|------------|--------------------------------------|-------------------------|
