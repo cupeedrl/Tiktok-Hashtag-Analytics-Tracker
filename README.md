@@ -198,14 +198,26 @@ WHERE report_date = '{{ ds }}'
 
 2. Bulk insert for perfomance     
 - **Problem**: Row-by-row insert is slow for large datasets. 
-- **Solution**: Use hook.insert_rows() with list of tuples:
+- **Solution**: Use execute_values() with list of tuples:
 ```sql
-hook.insert_rows(
-    table='stg_hashtag_raw',
-    rows=records,  # List of tuples
-    target_fields=[...],
-    commit=True
-)
+            execute_values(
+                cur,
+                """
+                INSERT INTO stg_hashtag_raw 
+                (hashtag_name, report_date, views, likes, shares, comments, engagement_rate, extracted_at)
+                VALUES %s
+                ON CONFLICT (hashtag_name, report_date) 
+                DO UPDATE SET
+                    views = EXCLUDED.views,
+                    likes = EXCLUDED.likes,
+                    shares = EXCLUDED.shares,
+                    comments = EXCLUDED.comments,
+                    engagement_rate = EXCLUDED.engagement_rate,
+                    extracted_at = EXCLUDED.extracted_at
+                """,
+                records,  # List of tuples
+                page_size=100  # Batch size for very large lists
+            )
 ```
 -**Result**: 10x faster inserts vs row-by-row approach.
 
