@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 from airflow.exceptions import AirflowException
 from airflow.hooks.postgres_hook import PostgresHook
 from scripts.mock_api import TikTokMockAPI
-
+from psycopg2.extras import execute_values
 logger = logging.getLogger(__name__)
 
 
@@ -46,30 +46,35 @@ class TikTokAPIExtractor:
         ]
     
     def bulk_insert(self, records: List[tuple], report_date: str) -> int:
-        """Bulk insert with UPSERT (idempotent)"""
+        """True bulk insert with UPSERT using execute_values"""
         logger.info(f"Bulk inserting {len(records)} records with UPSERT")
         
         conn = self.hook.get_conn()
         cur = conn.cursor()
         
         try:
-            for record in records:
-                cur.execute("""
-                    INSERT INTO stg_hashtag_raw 
-                    (hashtag_name, report_date, views, likes, shares, comments, engagement_rate, extracted_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (hashtag_name, report_date) 
-                    DO UPDATE SET
-                        views = EXCLUDED.views,
-                        likes = EXCLUDED.likes,
-                        shares = EXCLUDED.shares,
-                        comments = EXCLUDED.comments,
-                        engagement_rate = EXCLUDED.engagement_rate,
-                        extracted_at = EXCLUDED.extracted_at
-                """, record)
+            # Single SQL statement with multiple VALUES tuples
+            execute_values(
+                cur,
+                """
+                INSERT INTO stg_hashtag_raw 
+                (hashtag_name, report_date, views, likes, shares, comments, engagement_rate, extracted_at)
+                VALUES %s
+                ON CONFLICT (hashtag_name, report_date) 
+                DO UPDATE SET
+                    views = EXCLUDED.views,
+                    likes = EXCLUDED.likes,
+                    shares = EXCLUDED.shares,
+                    comments = EXCLUDED.comments,
+                    engagement_rate = EXCLUDED.engagement_rate,
+                    extracted_at = EXCLUDED.extracted_at
+                """,
+                records,  # List of tuples
+                page_size=100  # Batch size for very large lists
+            )
             
             conn.commit()
-            logger.info(f"Successfully upserted {len(records)} records")
+            logger.info(f"Successfully bulk upserted {len(records)} records")
             return len(records)
         
         except Exception as e:
