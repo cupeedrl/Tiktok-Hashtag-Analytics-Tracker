@@ -48,9 +48,9 @@ Dimensional Modeling (Star Schema)
 
 | Table               | Type       | Purpose                              | Growth                  |
 |---------------------|------------|--------------------------------------|-------------------------|
-| stg_hashtag_raw     | Staging    | Raw API data, audit trail            | ~30 rows/day (20-40)    |
+| stg_hashtag_raw     | Staging    | Raw API data, audit trail            | ~ 15 rows/day     |
 | dim_date            | Dimension  | Time intelligence, no ETL            | Static (4,018)          |
-| dim_hashtag         | Dimension  | Hashtag master data (15 categories)  | 15 rows (total)         |
+| dim_hashtag         | Dimension  | Hashtag master data (15 categories)  | ~ 15 rows (total)         |
 | fact_hashtag_daily  | Fact       | Grain: hashtag × day                 | ~15 rows/day            |
 | agg_hashtag_rank    | Analytics  | Pre-computed rankings                | ~15 rows/day            |
 
