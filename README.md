@@ -236,12 +236,12 @@ checks = {
 -**Result**: Pipeline fails fast on bad data, preventing warehouse corruption.
 
 4. Star Schema Compliance  
--**Problem**: Direct date insert violates foreign key constraints.
--**Solution**: INNER JOIN with dim_date for referential integrity:
+-**Problem**: Direct date insert violates foreign key constraints.  
+-**Solution**: INNER JOIN with dim_date for referential integrity:  
 ```sql
-INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
-```
--**Result**: Enforced data consistency across fact and dimension tables.
+INNER JOIN dim_date dd ON s.report_date::date = dd.date_id  
+```  
+-**Result**: Enforced data consistency across fact and dimension tables.  
 5. Modular Code Architecture  
 -**Problem**: Monolithic DAGs are hard to maintain and test.  
 -**Solution**: Separate modules for extractors, validators, SQL, config:  
@@ -253,7 +253,7 @@ INNER JOIN dim_date dd ON s.report_date::date = dd.date_id
     └── config/settings.py
 ```
 -**Result**: Pipeline fails fast on bad data, preventing corruption.  
-## Skills Demonstrated
+## Skills Demonstrated  
 - Data Orchestration: Apache Airflow, DAG design, Task dependencies  
 - Data Warehousing: PostgreSQL, Star Schema, Dimensional modeling  
 - ETL Development: Python, SQL, Bulk insert, UPSERT, Idempotency  
